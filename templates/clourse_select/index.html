@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <title>选课系统登录</title>
+    <style>
+        body {
+            background-image: url('background.jpg');
+            background-size: cover;
+            font-family: Arial, sans-serif;
+        }
+        .login-container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 20px;
+        }
+        .login-form {
+            width: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .login-form input[type="text"],
+        .login-form input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .login-form input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <form class="login-form" id="loginForm">
+        <input type="text" id="username" placeholder="用户名" required>
+        <input type="password" id="password" placeholder="密码" required>
+        <input type="submit" value="登录">
+    </form>
+</div>
+<script>
+    document.getElementById('loginForm').addEventListener('submit', function(event)     {
+        event.preventDefault(); // 阻止表单默认提交行为
+        var username = document.getElementById('username').value;
+        var password = document.getElementById('password').value;
+        // 在这里添加验证逻辑和登录逻辑，例如发送请求到服务器验证用户信息等。
+        console.log('用户名:', username);
+        console.log('密码:', password);
+    });
+</script>
+</body>
+</html>

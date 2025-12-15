@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8"/>
+    <title>商品管理</title>
+    <style>
+        /* body { font-family: Arial, sans-serif; margin: 20px; }*/
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f4;
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        input, button {
+            padding: 6px;
+            margin-right: 5px;
+        }
+
+        .tags {
+            font-size: 0.9em;
+            color: #555;
+        }
+    </style>
+</head>
+<body data-api-base="/ProdManage">
+<h1>商品管理</h1>
+
+<!-- 搜索 -->
+<div>
+    <input type="text" id="searchName" placeholder="按名称搜索"/>
+    <button onclick="searchProducts()">搜索</button>
+</div>
+
+<!-- 创建表单 -->
+<div style="margin-top: 20px;">
+    <h3>新增商品</h3>
+    <div class="form-group">
+        <input type="text" id="prodName" placeholder="商品名称"/>
+        <input type="text" id="info" placeholder="信息"/>
+        <button onclick="createProduct()">创建商品</button>
+    </div>
+</div>
+
+<!-- 列表展示 -->
+<table id="productTable">
+    <thead>
+    <tr>
+        <th>商品ID</th>
+        <th>名称</th>
+        <th>创建时间</th>
+        <th>标签</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/base.js"></script>
+<script>
+    let currentUserInfo = JSON.parse(localStorage.getItem('user'))
+
+    // 查询商品列表
+    async function searchProducts() {
+        const name = document.getElementById('searchName').value;
+        const data = {};
+        if (name) data.pname = name;
+
+        const result = await request.post('/select_prod', {
+                prod: data
+            })
+        ;
+
+        const tbody = document.querySelector('#productTable tbody');
+        tbody.innerHTML = '';
+
+        result.data.forEach(p => {
+            const tagsHtml = p.tags?.map(t => t.tname).join(', ') || '无';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+          <td>${p.pid}</td>
+          <td>${p.pname}</td>
+          <td>${p.c_date}</td>
+          <td class="tags">${tagsHtml}</td>
+          <td>
+            <button onclick="editProduct(${p.pid}, '${p.pname}', ${p.c_date})">编辑</button>
+            <button onclick="deleteProduct(${p.pid})">删除</button>
+            <button onclick="manageTags(${p.pid})">管理标签</button>
+          </td>
+        `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // 创建商品
+    async function createProduct() {
+        const name = document.getElementById('prodName').value;
+        const info = document.getElementById('info').value;
+
+        if (!name || !info) return alert('请填写完整信息');
+
+        const result = await request.post('/create_prod', {
+                values: [{pname: name, info: info, uid: currentUserInfo.uid}]
+            }
+        );
+
+        alert(result.msg);
+        await searchProducts();
+    }
+
+    // 更新商品（简化版）
+    async function updateProduct() {
+        const pid = document.getElementById('editPid').value;
+        const name = document.getElementById('editName').value;
+        const price = parseFloat(document.getElementById('editPrice').value);
+
+        const result = await request.post('/update_prod', {
+            values: [{pid: parseInt(pid), prod_name: name, price: price}]
+        });
+
+        alert(result.msg);
+        document.getElementById('editForm').style.display = 'none';
+        searchProducts();
+    }
+
+    // 删除商品
+    async function deleteProduct(pid) {
+        if (!confirm('确定删除？')) return;
+        const uid = currentUserInfo.uid
+        const result = await request.post('/delete_prod', {pid, uid});
+        alert(result.msg);
+        searchProducts();
+    }
+
+    // 编辑弹窗
+    function editProduct(pid, name, price) {
+        document.getElementById('editPid').value = pid;
+        document.getElementById('editName').value = name;
+        document.getElementById('editPrice').value = price;
+        document.getElementById('editForm').style.display = 'block';
+    }
+
+    // 管理商品标签（跳转或弹窗）
+    function manageTags(pid) {
+        window.location.href = `tag.html?pid=${pid}`;
+    }
+
+    // 页面加载时查询全部
+    window.onload = () => searchProducts();
+
+    // 编辑表单（隐藏区域）
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="editForm" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:20px; border:1px solid #ccc; z-index:100;">
+        <h3>编辑商品</h3>
+        <input type="hidden" id="editPid" />
+        <input type="text" id="editName" placeholder="名称" /><br><br>
+        <input type="number" id="editPrice" placeholder="价格" /><br><br>
+        <button onclick="updateProduct()">保存</button>
+        <button onclick="document.getElementById('editForm').style.display='none'">取消</button>
+      </div>
+    `);
+</script>
+</body>
+</html>

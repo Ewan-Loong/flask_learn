@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <meta charset="UTF-8">
+    <title>统一登录管理</title>
+
+    <style>
+        /* 主体内容区域 - 登录表单 */
+        .main-content {
+            margin-left: 0;
+        }
+
+        .login-main-layout {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body data-api-base="/UserAuth">
+<div class="main-layout">
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="logo">统一登录管理</div>
+        <div class="theme-toggle">
+            <button id="themeToggle" class="btn btn-default btn-sm">
+                💡 切换主题
+            </button>
+        </div>
+        <div class="user-info">
+            <div class="avatar" id="userAvatar">U</div> <!-- 默认头像 -->
+            <div class="user-details">
+                <div class="username" id="usernameDisplay">未登录</div>
+                <div class="user-role" id="userRoleDisplay">-</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <div class="main-content">
+        <!-- 登录表单区域 -->
+        <div class="login-main-layout" id="loginFormmain-layout">
+            <h2>用户登录</h2>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username">用户名:</label>
+                    <input class='input' type="text" id="username" name="username" required autocomplete="off"/>
+                </div>
+
+                <div class="input-group">
+                    <label for="password">密码:</label>
+                    <input type="password" id="password" name="password" required autocomplete="off"/>
+                </div>
+
+                <button type="submit" class="btn btn-block btn-success" id="loginBtn">
+                    <span id="loginBtnText">登录</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+</div>
+<script type="module" src="/static/js/api.js"></script>
+<script type="module" src="/static/js/base.js"></script>
+<script type="module">
+    import {UserAuth} from '/static/js/api.js';
+    import {Loading, MsgQ} from '/static/js/base.js';
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        setupLoginForm();
+    });
+
+    // 设置登录表单事件
+    function setupLoginForm() {
+        document.getElementById('loginForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                MsgQ.info('请输入用户名和密码。');
+                return;
+            }
+
+            // 显示加载状态
+            Loading.show({
+                target: 'loginBtn',
+                text: '登录中...',
+                type: 'spinner'
+            });
+
+            try {
+
+                const response = await UserAuth.post('/login', {
+                    name: username,
+                    passwd: password
+                }, {
+                    timeout: 10000,
+                    noAuth: true
+                });
+                console.log(response)
+                if (response && response.token) {
+                    // 成功后获取用户信息并切换界面
+                    const currentUserInfo = response.user; // 假设返回的是数组，取第一个
+                    localStorage.setItem('Token', response.token);
+                    localStorage.setItem('user', JSON.stringify(response.user));
+                    // 更新页面上的用户信息显示
+                    document.getElementById('usernameDisplay').textContent = currentUserInfo.name || '未知用户';
+                    document.getElementById('userRoleDisplay').textContent = currentUserInfo.role || '未知角色';
+                    document.getElementById('userAvatar').textContent = (currentUserInfo.name || 'U').charAt(0).toUpperCase();
+
+                    if (currentUserInfo) {
+                        MsgQ.success('登录成功！')
+                        window.location.href = '/home.html';
+                    } else {
+                        MsgQ.error('登录成功但获取用户信息失败。');
+                    }
+
+                } else {
+                    MsgQ.error(response.msg);
+                }
+            } catch (error) {
+                console.error('登录请求失败:', error);
+                let errorMessage = '网络请求失败，请检查网络连接或稍后重试。';
+                if (error.response) {
+                    errorMessage = error.response.msg || error.response.detail || `登录失败，服务器返回错误: ${error.response.status} ${error.response.statusText}`;
+                } else if (error.request) {
+                    errorMessage = '无法连接到服务器，请检查网络或服务器地址是否正确。';
+                } else {
+                    errorMessage = error.message;
+                }
+                MsgQ.error(errorMessage);
+            } finally {
+                Loading.hide('loginBtn')
+                // 清空登录表单
+                document.getElementById('loginForm').reset();
+            }
+        });
+    }
+</script>
+</body>
+</html>

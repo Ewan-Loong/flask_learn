@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>标签管理</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    ul { list-style: none; padding-left: 20px; }
+    li { margin: 5px 0; }
+    .tag-item { display: inline-block; padding: 2px 6px; background: #e0e0e0; margin-right: 5px; border-radius: 3px; }
+    input[type="text"] { padding: 6px; width: 200px; }
+    button { padding: 6px 10px; }
+  </style>
+</head>
+<body>
+  <h1>商品标签管理</h1>
+
+  <!-- 创建一级标签 -->
+  <div>
+    <input type="text" id="tagName" placeholder="新标签名" />
+    <button onclick="createTag(null)">创建顶级标签</button>
+  </div>
+
+  <!-- 显示标签树 -->
+  <div id="tagTree" style="margin-top: 20px;"></div>
+
+  <!-- 如果带 pid 参数，则显示“添加到商品”按钮 -->
+  <div id="attachBtn" style="margin-top: 20px; display: none;">
+    <button onclick="attachTagsToProduct()">将选中标签绑定到商品</button>
+  </div>
+
+  <script>
+    const baseUrl = 'http://localhost:5000/ProdManage';
+    const token = 'your-jwt-token';
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = urlParams.get('pid'); // 是否来自商品页
+
+    async function request(url, options) {
+      const res = await fetch(baseUrl + url, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return await res.json();
+    }
+
+    // 加载标签树
+    async function loadTags() {
+      const result = await request('/select_tag', { method: 'GET' });
+      const container = document.getElementById('tagTree');
+      container.innerHTML = '';
+      renderTagTree(result.data, container);
+
+      // 如果是从商品进入，则显示附加按钮
+      if (productId) {
+        document.getElementById('attachBtn').style.display = 'block';
+      }
+    }
+
+    // 渲染树结构
+    function renderTagTree(nodes, parentElem) {
+      if (!nodes || nodes.length === 0) return;
+      const ul = document.createElement('ul');
+      nodes.forEach(node => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          ${node.tname}
+          <button onclick="createSubTag(${node.tid})">+</button>
+          <button onclick="updateTagName(${node.tid}, '${node.tname}')">✏️</button>
+          <button onclick="deleteTag(${node.tid})">❌</button>
+          <span class="checkbox"><input type="checkbox" data-tid="${node.tid}"> 选择</span>
+        `;
+        ul.appendChild(li);
+        renderTagTree(node.child, li);
+      });
+      parentElem.appendChild(ul);
+    }
+
+    // 创建标签（可指定父级）
+    async function createTag(ptid = null) {
+      const name = document.getElementById('tagName').value;
+      if (!name) return alert('请输入标签名');
+
+      const result = await request('/create_tag', {
+        method: 'POST',
+        body: JSON.stringify({ tname: name, ptid })
+      });
+
+      alert(result.msg);
+      document.getElementById('tagName').value = '';
+      loadTags();
+    }
+
+    function createSubTag(parentId) {
+      const name = prompt('输入子标签名称');
+      if (name) createTag(parentId);
+    }
+
+    async function updateTagName(tid, oldName) {
+      const newName = prompt('修改标签名', oldName);
+      if (!newName) return;
+      const result = await request('/update_tag', {
+        method: 'POST',
+        body: JSON.stringify({ tid, tname: newName })
+      });
+      alert(result.msg);
+      loadTags();
+    }
+
+    async function deleteTag(tid) {
+      if (!confirm('删除标签会解除所有关联，确认？')) return;
+      const result = await request('/delete_tag', {
+        method: 'POST',
+        body: JSON.stringify({ tid })
+      });
+      alert(result.msg);
+      loadTags();
+    }
+
+    // 获取选中的标签并绑定到商品
+    async function attachTagsToProduct() {
+      const checked = document.querySelectorAll('input[data-tid]:checked');
+      const tids = Array.from(checked).map(cb => parseInt(cb.dataset.tid));
+      if (tids.length === 0) return alert('请至少选择一个标签');
+
+      const result = await request('/prod_add_tag', {
+        method: 'POST',
+        body: JSON.stringify({ pid: parseInt(productId), tid: tids })
+      });
+
+      alert(result.msg);
+    }
+
+    // 初始化
+    window.onload = loadTags;
+  </script>
+</body>
+</html>

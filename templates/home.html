@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <meta charset="UTF-8"/>
+    <title>统一登录管理</title>
+    <style>
+
+    </style>
+
+</head>
+<body data-api-base="/UserAuth">
+<div class="main-layout">
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="logo">统一登录管理</div>
+        <div class="theme-toggle">
+            <button id="themeToggle" class="btn btn-sm">
+                💡 切换主题
+            </button>
+        </div>
+        <div class="user-info">
+            <div class="avatar" id="userAvatar">U</div> <!-- 默认头像 -->
+            <div class="user-details">
+                <div class="username" id="usernameDisplay">未登录</div>
+                <div class="user-role" id="userRoleDisplay">-</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebarMenu">
+        <ul class="sidebar-menu">
+            <li><a href="homepage/SysList.html" data-init="renderSystemsList">首页</a></li>
+            <li>
+                <a href="#" class="has-submenu" data-init="initSystem">
+                    系统管理<span class="arrow"></span>
+                </a>
+                <ul class="sidebar-submenu">
+                    <li><a href="homepage/SysList.html" data-init="renderSystemsList">系统列表</a></li>
+                    <li><a href="#" data-init="initSysAdd">添加系统</a></li>
+                    <li><a href="#" data-init="initSysUpdate">修改系统</a></li>
+                </ul>
+            </li>
+            <li>
+                <a href="#" class="has-submenu" data-init="initUser">
+                    用户管理<span class="arrow"></span>
+                </a>
+                <ul class="sidebar-submenu">
+                    <li><a href="#" data-init="initUserList">用户列表</a></li>
+                    <li><a href="#" data-init="initUserAdd">新增用户</a></li>
+                    <li><a href="#" data-init="initUserUpdate">修改用户</a></li>
+                </ul>
+            </li>
+            <li><a href="#" id="logout">退出登录</a></li>
+        </ul>
+    </aside>
+
+    <!-- 主体内容 -->
+    <div class="main-content">
+        <p>请选择一个页面。</p>
+    </div>
+</div>
+<script type="module" src="/static/js/api.js"></script>
+<script type="module" src="/static/js/base.js"></script>
+<script type="module">
+    import {UserAuth} from '/static/js/api.js';
+    import {Loading, MsgQ, checkStoredToken, logout} from '/static/js/base.js';
+    import {renderSystemsList} from '/static/js/homepage/init.js';
+
+    // 定义一个函数映射表
+    const PageInitFunctions = {
+        renderSystemsList: renderSystemsList,
+        // 其他初始化函数...
+    };
+
+    // 声明全局变量存储 token 和用户信息
+    let globalToken = localStorage.getItem('Token');
+    let currentUserInfo = JSON.parse(localStorage.getItem('user'));
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        setupMenuBar();
+        // setupLogoutButton();
+        // setupNavigation();
+        // setupUserManagementForms();
+
+        // 尝试从localStorage恢复登录状态 (可选)
+        checkStoredToken();
+
+        document.getElementById('logout').addEventListener('click', logout);
+    });
+
+    // 设置菜单栏事件
+    function setupMenuBar() {
+
+        // 所有可点击的菜单项（排除有子菜单但不是叶子节点的）
+        const menuLinks = document.querySelectorAll('.sidebar-menu a[href]:not(.has-submenu), .sidebar-menu .sidebar-submenu a[href]');
+        console.log(menuLinks)
+        menuLinks.forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault(); // 阻止默认跳转
+
+                const url = this.getAttribute('href');
+                const initFunctionName = this.getAttribute('data-init');
+
+                // 更新高亮状态
+                document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.remove('active'));
+                this.classList.add('active');
+
+                // 更新 active-parent
+                updateActiveParentClasses();
+
+                // 加载页面内容
+                loadPage(url, initFunctionName);
+            });
+        });
+
+
+        // 默认加载第一个页面（可选）
+        if (menuLinks.length > 0) {
+            menuLinks[0].click();
+        }
+    }
+
+    // 加载页面内容并执行初始化函数
+    async function loadPage(url, initFunctionName) {
+        // const mainContent = document.getElementsByClassName('main-content')[0];
+        const mainContent = document.querySelector('.main-content');
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`加载失败: ${url}`);
+
+            const html = await response.text();
+            // 插入 HTML（只取 body 内容，避免重复 head）
+            mainContent.innerHTML = `
+      <div data-page="${url}" style="width: 100%;height: 100%">
+        ${extractBodyContent(html)}
+      </div>
+    `;
+
+            // 执行初始化函数（如果定义了）
+            // if (initFunctionName && window[initFunctionName]) {
+            //     window[initFunctionName]();
+            // } else if (initFunctionName) {
+            //     MsgQ.warning(`⚠️ 初始化函数未定义: ${initFunctionName}`);
+            // }
+
+            // 执行初始化函数（如果定义了）
+            if (initFunctionName && PageInitFunctions[initFunctionName]) {
+                PageInitFunctions[initFunctionName]();
+            } else if (initFunctionName) {
+                MsgQ.warning(`⚠️ 初始化函数未定义: ${initFunctionName}`);
+            }
+
+        } catch (err) {
+            mainContent.innerHTML = `<p style="color:red;">加载页面失败: ${err.message}</p>`;
+            console.error(err)
+            MsgQ.error(err);
+        }
+    }
+
+    // 提取 HTML 文件中的 body 内容（去除 <head> 等）
+    function extractBodyContent(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html;
+        const bodyContent = div.querySelector('body') || div;
+        return bodyContent.innerHTML || bodyContent.textContent;
+    }
+
+    // 更新 active-parent 类
+    function updateActiveParentClasses() {
+        document.querySelectorAll('.sidebar-menu li').forEach(li => {
+            li.classList.remove('active-parent');
+            if (li.querySelector('.sidebar-submenu a.active')) {
+                li.classList.add('active-parent');
+            }
+        });
+    }
+
+    // 设置导航按钮
+    function setupNavigation() {
+        document.getElementById('showSystemsBtn').addEventListener('click', showSystemsView);
+        document.getElementById('showCreateUserBtn').addEventListener('click', showCreateUserView);
+        document.getElementById('showUpdateUserBtn').addEventListener('click', showUpdateUserView);
+    }
+
+    function showSystemsView() {
+        document.getElementById('contentArea').querySelectorAll('div[id$="Area"]').forEach(el => el.style.display = 'none');
+        document.getElementById('systemsGridArea').style.display = 'block';
+        document.querySelectorAll('.btn-primary').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('showSystemsBtn').classList.add('active');
+    }
+
+    function showCreateUserView() {
+        document.getElementById('contentArea').querySelectorAll('div[id$="Area"]').forEach(el => el.style.display = 'none');
+        document.getElementById('createUserArea').style.display = 'block';
+        document.querySelectorAll('.btn-primary').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('showCreateUserBtn').classList.add('active');
+    }
+
+    function showUpdateUserView() {
+        document.getElementById('contentArea').querySelectorAll('div[id$="Area"]').forEach(el => el.style.display = 'none');
+        document.getElementById('updateUserArea').style.display = 'block';
+        document.querySelectorAll('.btn-primary').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('showUpdateUserBtn').classList.add('active');
+
+        // 填充更新表单
+        if (currentUserInfo) {
+            document.getElementById('updatedUsername').value = currentUserInfo.name;
+            document.getElementById('updatedEmail').value = currentUserInfo.email || '';
+        }
+    }
+
+    // 设置用户管理表单事件
+    function setupUserManagementForms() {
+        // 创建用户表单
+        document.getElementById('createUserForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            await createUser();
+        });
+
+        // 更新用户信息表单
+        document.getElementById('updateUserForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            await updateUserInfo();
+        });
+    }
+
+    // 创建用户
+    async function createUser() {
+        const newUsername = document.getElementById('newUsername').value.trim();
+        const newPassword = document.getElementById('newPassword').value;
+
+        if (!newUsername || !newPassword) {
+            MsgQ.warning('请输入用户名和密码。');
+            return;
+        }
+
+        try {
+            const response = await request.post('/create_user', {
+                name: newUsername,
+                passwd: newPassword
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${globalToken}`,
+                    'Token': globalToken,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+
+
+            if (response.data && response.data.msg && response.data.msg.includes('成功')) {
+                MsgQ.success('用户创建成功。');
+                document.getElementById('createUserForm').reset();
+            } else {
+                MsgQ.error(`创建用户失败：${response.data.msg || '未知错误'}`);
+            }
+        } catch (error) {
+            MsgQ.error('创建用户失败:', error);
+            let errorMessage = '创建用户失败，请检查网络或稍后重试。';
+            if (error.response) {
+                errorMessage = `创建用户失败：${error.response.status} ${error.response.statusText}`;
+                if (error.response.data && error.response.data.msg) {
+                    errorMessage = `创建用户失败：${error.response.data.msg}`;
+                }
+            }
+            MsgQ.error(errorMessage);
+        }
+    }
+
+    // 更新用户信息
+    async function updateUserInfo() {
+        const updatedPassword = document.getElementById('updatedPassword').value;
+        const updatedEmail = document.getElementById('updatedEmail').value;
+
+        if (!updatedPassword && !updatedEmail) {
+            MsgQ.error('请至少填写密码或邮箱一项。');
+            return;
+        }
+
+        try {
+
+            const updateData = {
+                name: currentUserInfo.name
+            };
+            if (updatedPassword) updateData.passwd = updatedPassword;
+            if (updatedEmail) updateData.email = updatedEmail;
+
+            const response = await request.post('http://127.0.0.1:5000/UserAuth/update_user', updateData, {
+                headers: {
+                    'Authorization': `Bearer ${globalToken}`,
+                    'token': globalToken,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+
+            if (response.data && response.data.msg && response.data.msg.includes('成功')) {
+                MsgQ.success('用户信息更新成功。');
+                // 重新加载用户信息
+                await loadUserInfo();
+            } else {
+                MsgQ.error(`更新用户信息失败：${response.data.msg || '未知错误'}`);
+            }
+        } catch (error) {
+            let errorMessage = '更新用户信息失败，请检查网络或稍后重试。';
+            if (error.response) {
+                errorMessage = `更新用户信息失败：${error.response.status} ${error.response.statusText}`;
+                if (error.response.data && error.response.data.msg) {
+                    errorMessage = `更新用户信息失败：${error.response.data.msg}`;
+                }
+            }
+            MsgQ.error(errorMessage);
+        }
+    }
+
+</script>
+</body>
+</html>

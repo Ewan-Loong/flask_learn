@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <title>统一登录管理</title>
+    <!-- 引入 Axios 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* 顶部导航栏 */
+        .header {
+            background-color: #fff;
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1890ff;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #1890ff; /* 默认头像背景色 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .user-details {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .username {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* 主体内容区域 - 登录表单 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(245, 247, 250, 0.5); /* 与body背景稍有区别 */
+        }
+
+        .login-container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #4CAF50; /* 聚焦时边框颜色 */
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .login-button:hover {
+            background-color: #45a049;
+        }
+
+        .login-button:active {
+            transform: scale(0.98); /* 点击时轻微缩放效果 */
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            display: none; /* 默认隐藏 */
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 登录成功后显示的系统列表区域 */
+        .systems-container {
+            display: none; /* 默认隐藏，登录成功后显示 */
+            width: 100%;
+            max-width: 800px;
+            padding: 20px;
+        }
+
+        .systems-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .system-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .system-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .system-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .system-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .system-desc {
+            font-size: 14px;
+            color: #888;
+        }
+
+        /* 登出按钮 */
+        .logout-button {
+            margin-top: 20px;
+            padding: 8px 16px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .logout-button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="logo">统一登录管理</div>
+        <div class="user-info">
+            <div class="avatar" id="userAvatar">U</div> <!-- 默认头像 -->
+            <div class="user-details">
+                <div class="username" id="usernameDisplay">未登录</div>
+                <div class="user-role" id="userRoleDisplay">-</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <div class="main-content">
+        <!-- 登录表单区域 -->
+        <div class="login-container" id="loginFormContainer">
+            <h2>用户登录</h2>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username">用户名:</label>
+                    <input type="text" id="username" name="username" required autocomplete="off" />
+                </div>
+
+                <div class="input-group">
+                    <label for="password">密码:</label>
+                    <input type="password" id="password" name="password" required autocomplete="off" />
+                </div>
+
+                <button type="submit" class="login-button" id="loginBtn">
+                    <span id="loginBtnText">登录</span>
+                    <span id="loginBtnSpinner" class="loading" style="display: none;"></span>
+                </button>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
+
+        <!-- 系统列表区域 -->
+        <div class="systems-container" id="systemsContainer">
+            <h2>可访问的后台系统</h2>
+            <div class="systems-grid" id="systemsGrid">
+                <!-- 系统卡片将通过JavaScript动态生成 -->
+            </div>
+            <button class="logout-button" id="logoutBtn">退出登录</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 声明全局变量存储 token 和用户信息
+    let globalToken = null;
+    let currentUserInfo = null;
+
+    // 定义当前可访问的后台系统菜单项
+    const availableSystems = [
+        { id: 'dashboard', name: '仪表盘', icon: '📊', description: '系统概览', url: 'dashboard.html' },
+        { id: 'users', name: '用户管理', icon: '👥', description: '管理平台用户', url: 'users.html' },
+        { id: 'products', name: '产品管理', icon: '📦', description: '管理产品信息', url: 'products.html' },
+        { id: 'orders', name: '订单管理', icon: '📋', description: '管理订单流程', url: 'orders.html' },
+        { id: 'reports', name: '数据报表', icon: '📈', description: '业务数据分析', url: 'reports.html' },
+        { id: 'settings', name: '系统设置', icon: '⚙️', description: '系统参数配置', url: 'settings.html' },
+        { id: 'logs', name: '操作日志', icon: '📝', description: '用户操作记录', url: 'logs.html' }
+    ];
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        setupLoginForm();
+        setupLogoutButton();
+        // 尝试从localStorage恢复登录状态 (可选)
+        checkStoredToken();
+    });
+
+    // 设置登录表单事件
+    function setupLoginForm() {
+        document.getElementById('loginForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                showMessage('请输入用户名和密码。', 'error');
+                return;
+            }
+
+            // 显示加载状态
+            const loginBtn = document.getElementById('loginBtn');
+            const loginBtnText = document.getElementById('loginBtnText');
+            const loginBtnSpinner = document.getElementById('loginBtnSpinner');
+            loginBtn.disabled = true;
+            loginBtnText.textContent = '登录中...';
+            loginBtnSpinner.style.display = 'inline-block';
+
+            try {
+                console.log('准备发送登录请求到: http://127.0.0.1:5000/UserAuth/login');
+                const response = await axios.post('http://127.0.0.1:5000/UserAuth/login', {
+                    name: username,
+                    passwd: password
+                }, {
+                    timeout: 10000
+                });
+
+                console.log('登录请求成功，响应:', response.data);
+
+                if (response.data && response.data.token) {
+                    globalToken = response.data.token;
+                    console.log('Token 获取成功，存入全局变量:', globalToken);
+
+                    // 成功后获取用户信息并切换界面
+                    await loadUserInfo();
+                    if (currentUserInfo) {
+                        // 可选：将token存入localStorage以便刷新后恢复
+                        // localStorage.setItem('authToken', globalToken);
+                        switchToSystemsView();
+                    } else {
+                        showMessage('登录成功但获取用户信息失败。', 'error');
+                    }
+
+                } else {
+                    showMessage('登录失败：服务器未返回有效凭证。', 'error');
+                }
+            } catch (error) {
+                loginBtn.disabled = false;
+                loginBtnText.textContent = '登录';
+                loginBtnSpinner.style.display = 'none';
+
+                console.error('登录请求失败:', error);
+                let errorMessage = '网络请求失败，请检查网络连接或稍后重试。';
+                if (error.response) {
+                    errorMessage = error.response.data.message || error.response.data.detail || `登录失败，服务器返回错误: ${error.response.status} ${error.response.statusText}`;
+                } else if (error.request) {
+                    errorMessage = '无法连接到服务器，请检查网络或服务器地址是否正确。';
+                } else {
+                    errorMessage = error.message;
+                }
+                showMessage(errorMessage, 'error');
+            }
+        });
+    }
+
+    // 获取当前用户信息
+    async function loadUserInfo() {
+        if (!globalToken) {
+            console.error('没有可用的 token，无法获取用户信息。');
+            return;
+        }
+
+        try {
+            console.log('准备获取用户信息...');
+            const response = await axios.get('http://127.0.0.1:5000/UserAuth/select_user', {
+                headers: {
+                    'Authorization': `Bearer ${globalToken}`
+                }
+            });
+
+            console.log('用户信息响应:', response.data);
+
+            if (response.data && response.data.data) {
+                currentUserInfo = response.data.data;
+
+                // 更新页面上的用户信息显示
+                document.getElementById('usernameDisplay').textContent = currentUserInfo.name || '未知用户';
+                document.getElementById('userRoleDisplay').textContent = currentUserInfo.role || '未知角色';
+                document.getElementById('userAvatar').textContent = (currentUserInfo.name || 'U').charAt(0).toUpperCase();
+
+                console.log('用户信息加载成功:', currentUserInfo);
+            } else {
+                console.error('API响应中未包含用户数据:', response.data);
+                showMessage('获取用户信息失败：API响应格式错误。', 'error');
+                // 如果获取用户信息失败，可能需要登出
+                // logout();
+            }
+        } catch (error) {
+            console.error('获取用户信息失败:', error);
+            let errorMessage = '获取用户信息失败，请检查网络或稍后重试。';
+            if (error.response) {
+                errorMessage = `获取用户信息失败：${error.response.status} ${error.response.statusText}`;
+                // 如果是认证失败，可能需要登出
+                if (error.response.status === 401 || error.response.status === 403) {
+                    // logout();
+                }
+            }
+            showMessage(errorMessage, 'error');
+        }
+    }
+
+    // 切换到系统列表视图
+    function switchToSystemsView() {
+        document.getElementById('loginFormContainer').style.display = 'none';
+        document.getElementById('systemsContainer').style.display = 'block';
+
+        // 渲染系统列表
+        renderSystemsList();
+    }
+
+    // 渲染系统列表
+    function renderSystemsList() {
+        const systemsGrid = document.getElementById('systemsGrid');
+        systemsGrid.innerHTML = ''; // 清空现有内容
+
+        availableSystems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'system-card';
+            // card.onclick = () => { window.location.href = item.url; }; // 直接跳转
+            card.onclick = () => { alert(`即将跳转到 ${item.name} (${item.url})`); }; // 演示用，实际应跳转
+            card.innerHTML = `
+                <div class="system-icon">${item.icon}</div>
+                <div class="system-name">${item.name}</div>
+                <div class="system-desc">${item.description}</div>
+            `;
+            systemsGrid.appendChild(card);
+        });
+    }
+
+    // 设置登出按钮事件
+    function setupLogoutButton() {
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            logout();
+        });
+    }
+
+    // 登出函数
+    function logout() {
+        globalToken = null;
+        currentUserInfo = null;
+
+        // 清空用户信息显示
+        document.getElementById('usernameDisplay').textContent = '未登录';
+        document.getElementById('userRoleDisplay').textContent = '-';
+        document.getElementById('userAvatar').textContent = 'U';
+
+        // 隐藏系统列表，显示登录表单
+        document.getElementById('systemsContainer').style.display = 'none';
+        document.getElementById('loginFormContainer').style.display = 'block';
+
+        // 清空登录表单
+        document.getElementById('loginForm').reset();
+
+        // 可选：清除localStorage中的token
+        // localStorage.removeItem('authToken');
+
+        showMessage('已退出登录。', 'success');
+    }
+
+    // 检查本地存储的token（可选）
+    function checkStoredToken() {
+        // const storedToken = localStorage.getItem('authToken');
+        // if (storedToken) {
+        //     globalToken = storedToken;
+        //     // 尝试加载用户信息
+        //     loadUserInfo().then(() => {
+        //         if (currentUserInfo) {
+        //             switchToSystemsView();
+        //         } else {
+        //             // 如果token无效或用户信息加载失败，则登出
+        //             logout();
+        //         }
+        //     });
+        // }
+    }
+
+    // 显示消息提示
+    function showMessage(text, type) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.textContent = text;
+        messageDiv.className = 'message ' + type; // 设置CSS类
+        messageDiv.style.display = 'block'; // 显示消息
+
+        // 清除之前可能存在的定时器
+        clearTimeout(window.messageTimer);
+
+        // 3秒后自动隐藏消息
+        window.messageTimer = setTimeout(() => {
+            messageDiv.style.display = 'none';
+        }, 3000);
+    }
+    </script>
+</body>
+

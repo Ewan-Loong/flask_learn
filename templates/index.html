@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <meta charset="UTF-8"/>
+    <title>统一登录管理</title>
+
+    <style>
+        /* 主体内容区域 - 登录表单 */
+        .main-content {
+            flex:1;
+            margin-left: 0;
+        }
+
+        .login-main-layout,
+        .systems-main-layout,
+        .create-user-main-layout,
+        .update-user-main-layout {
+            background-color: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .systems-main-layout,
+        .create-user-main-layout,
+        .update-user-main-layout {
+            max-width: 80%;
+            display: flex;
+            flex:1;
+            min-height: 0;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            display: none; /* 默认隐藏 */
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /*.loading {*/
+        /*    display: inline-block;*/
+        /*    width: 20px;*/
+        /*    height: 20px;*/
+        /*    border: 3px solid rgba(255, 255, 255, .3);*/
+        /*    border-radius: 50%;*/
+        /*    border-top-color: #fff;*/
+        /*    animation: spin 1s ease-in-out infinite;*/
+        /*    margin-right: 8px;*/
+        /*}*/
+
+        /*@keyframes spin {*/
+        /*    to {*/
+        /*        transform: rotate(360deg);*/
+        /*    }*/
+        /*}*/
+
+        /* 登录成功后显示的系统列表区域 */
+        .systems-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .system-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .system-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .system-desc {
+            font-size: 14px;
+            color: #888;
+        }
+
+        /* 导航按钮 */
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+
+</head>
+<body data-api-base="/UserAuth">
+<div class="main-layout">
+    <!-- 顶部导航栏 -->
+    <header class="header">
+        <div class="logo">统一登录管理</div>
+        <div class="theme-toggle">
+            <button id="themeToggle" class="btn btn-default btn-sm">
+                💡 切换主题
+            </button>
+        </div>
+        <div class="user-info">
+            <div class="avatar" id="userAvatar">U</div> <!-- 默认头像 -->
+            <div class="user-details">
+                <div class="username" id="usernameDisplay">未登录</div>
+                <div class="user-role" id="userRoleDisplay">-</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体内容 -->
+    <div class="main-content">
+        <!-- 登录表单区域 -->
+        <div class="login-main-layout" id="loginFormmain-layout">
+            <h2>用户登录</h2>
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username">用户名:</label>
+                    <input class='input' type="text" id="username" name="username" required autocomplete="off"/>
+                </div>
+
+                <div class="input-group">
+                    <label for="password">密码:</label>
+                    <input type="password" id="password" name="password" required autocomplete="off"/>
+                </div>
+
+                <button type="submit" class="btn btn-success" id="loginBtn">
+                    <span id="loginBtnText">登录</span>
+                </button>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
+
+        <!-- 系统列表区域 -->
+        <div class="systems-main-layout" id="systemsmain-layout" style="display:none;">
+            <h2>可访问的后台系统</h2>
+            <div class="nav-buttons">
+                <button id="showSystemsBtn" class="btn btn-primary active">系统列表</button>
+                <button id="showCreateUserBtn" class="btn btn-primary">创建用户</button>
+                <button id="showUpdateUserBtn" class="btn btn-primary">修改信息</button>
+            </div>
+            <div id="contentArea">
+                <!-- 系统列表 -->
+                <div id="systemsGridArea">
+                    <div class="systems-grid" id="systemsGrid">
+                        <!-- 系统卡片将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+
+                <!-- 创建用户表单 -->
+                <div id="createUserArea" style="display:none;">
+                    <h3>创建新用户</h3>
+                    <form id="createUserForm">
+                        <div class="input-group">
+                            <label for="newUsername">用户名:</label>
+                            <input type="text" id="newUsername" name="name" required autocomplete="off"/>
+                        </div>
+                        <div class="input-group">
+                            <label for="newPassword">密码:</label>
+                            <input type="password" id="newPassword" name="passwd" required autocomplete="off"/>
+                        </div>
+                        <button type="submit" class="btn btn-default">创建用户</button>
+                    </form>
+                </div>
+
+                <!-- 更新用户信息表单 -->
+                <div id="updateUserArea" style="display:none;">
+                    <h3>更新用户信息</h3>
+                    <form id="updateUserForm">
+                        <div class="input-group">
+                            <label for="updatedUsername">用户名:</label>
+                            <input type="text" id="updatedUsername" name="name" value="" readonly/>
+                        </div>
+                        <div class="input-group">
+                            <label for="updatedPassword">新密码:</label>
+                            <input type="password" id="updatedPassword" name="passwd" placeholder="留空则不修改密码"/>
+                        </div>
+                        <div class="input-group">
+                            <label for="updatedEmail">邮箱:</label>
+                            <input type="email" id="updatedEmail" name="email" placeholder="请输入邮箱"/>
+                        </div>
+                        <button type="submit" class="btn btn-default">保存更改</button>
+                    </form>
+                </div>
+            </div>
+            <button class="btn btn-danger" id="logoutBtn">退出登录</button>
+        </div>
+    </div>
+</div>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/base.js"></script>
+<script>
+    // 声明全局变量存储 token 和用户信息
+    let globalToken = null;
+    let currentUserInfo = null;
+
+    // 定义当前可访问的后台系统菜单项
+    const availableSystems = [
+        {id: 'dashboard', name: '仪表盘', icon: '📊', description: '系统概览', url: 'dashboard.html'},
+        {id: 'users', name: '用户管理', icon: '👥', description: '管理平台用户', url: 'users.html'},
+        {id: 'products', name: '电商订单管理系统', icon: '📦', description: '管理产品信息', url: 'order_manage/home.html'},
+        {id: 'orders', name: '订单管理', icon: '📋', description: '管理订单流程', url: 'orders.html'},
+        {id: 'reports', name: '数据报表', icon: '📈', description: '业务数据分析', url: 'reports.html'},
+        {id: 'settings', name: '系统设置', icon: '⚙️', description: '系统参数配置', url: 'settings.html'},
+        {id: 'logs', name: '操作日志', icon: '📝', description: '用户操作记录', url: 'logs.html'}
+    ];
+
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        setupLoginForm();
+        setupLogoutButton();
+        setupNavigation();
+        setupUserManagementForms();
+        // 尝试从localStorage恢复登录状态 (可选)
+        checkStoredToken();
+    });
+
+    // 设置登录表单事件
+    function setupLoginForm() {
+        document.getElementById('loginForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username || !password) {
+                showMessage('请输入用户名和密码。', 'error');
+                return;
+            }
+
+            // 显示加载状态
+            Loading.show({
+                target: 'loginBtn',
+                text: '登录中...',
+                type: 'spinner'
+            });
+
+            try {
+
+                const response = await request.post('/login', {
+                    name: username,
+                    passwd: password
+                }, {
+                    timeout: 10000,
+                    noAuth: true
+                });
+                console.log(response)
+                if (response && response.token) {
+                    globalToken = response.token;
+                    // 成功后获取用户信息并切换界面
+                    currentUserInfo = response.user; // 假设返回的是数组，取第一个
+                    localStorage.setItem('Token', response.token);
+                    localStorage.setItem('user', JSON.stringify(response.user));
+                    // 更新页面上的用户信息显示
+                    document.getElementById('usernameDisplay').textContent = currentUserInfo.name || '未知用户';
+                    document.getElementById('userRoleDisplay').textContent = currentUserInfo.role || '未知角色';
+                    document.getElementById('userAvatar').textContent = (currentUserInfo.name || 'U').charAt(0).toUpperCase();
+
+                    if (currentUserInfo) {
+                        switchToSystemsView();
+                    } else {
+                        showMessage('登录成功但获取用户信息失败。', 'error');
+                    }
+
+                } else {
+                    showMessage(response.msg, 'error');
+                }
+            } catch (error) {
+
+                console.error('登录请求失败:', error);
+                let errorMessage = '网络请求失败，请检查网络连接或稍后重试。';
+                if (error.response) {
+                    errorMessage = error.response.msg || error.response.detail || `登录失败，服务器返回错误: ${error.response.status} ${error.response.statusText}`;
+                } else if (error.request) {
+                    errorMessage = '无法连接到服务器，请检查网络或服务器地址是否正确。';
+                } else {
+                    errorMessage = error.message;
+                }
+                showMessage(errorMessage, 'error');
+            } finally {
+                Loading.hide('loginBtn')
+            }
+        });
+    }
+
+    // 切换到系统列表视图
+    function switchToSystemsView() {
+        document.getElementById('loginFormmain-layout').style.display = 'none';
+        document.getElementById('systemsmain-layout').style.display = 'block';
+
+        // 渲染系统列表
+        renderSystemsList();
+    }
+
+    // 渲染系统列表
+    function renderSystemsList() {
+        const systemsGrid = document.getElementById('systemsGrid');
+        systemsGrid.innerHTML = ''; // 清空现有内容
+
+        availableSystems.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.onclick = () => {
+                alert(`即将跳转到 ${item.name} (${item.url})`);
+                window.location.href = item.url;
+            }; // 演示用，实际应跳转
+            card.innerHTML = `
+                <div class="system-icon">${item.icon}</div>
+                <div class="system-name">${item.name}</div>
+                <div class="system-desc">${item.description}</div>
+            `;
+            systemsGrid.appendChild(card);
+        });
+    }
+
+    // 设置登出按钮事件
+    function setupLogoutButton() {
+        document.getElementById('logoutBtn').addEventListener('click', function () {
+            logout();
+        });
+    }
+
+    // 登出函数
+    function logout() {
+        // 如果有全局token，调用登出API
+        if (globalToken && currentUserInfo) {
+            request.post('/logout', {
+                name: currentUserInfo.name,
+                uid: currentUserInfo.uid
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${globalToken}`,
+                    'token': globalToken,
+                    'Content-Type': 'application/json'
+                }
+            })
+        }
+
+        globalToken = null;
+        currentUserInfo = null;
+
+        // 清空用户信息显示
+        document.getElementById('usernameDisplay').textContent = '未登录';
+        document.getElementById('userRoleDisplay').textContent = '-';
+        document.getElementById('userAvatar').textContent = 'U';
+
+        // 隐藏系统列表，显示登录表单
+        document.getElementById('systemsmain-layout').style.display = 'none';
+        document.getElementById('loginFormmain-layout').style.display = 'block';
+
+        // 清空登录表单
+        document.getElementById('loginForm').reset();
+
+        // 清空用户管理表单
+        document.getElementById('createUserForm').reset();
+        document.getElementById('updateUserForm').reset();
+
+        // 切换回系统列表视图
+        showSystemsView();
+
+        // 清除localStorage中的token
+        localStorage.removeItem('Token');
+
+        showMessage('已退出登录。', 'success');
+    }
+
+    // 设置导航按钮
+    function setupNavigation() {
+        document.getElementById('showSystemsBtn').addEventListener('click', showSystemsView);
+        document.getElementById('showCreateUserBtn').addEventListener('click', showCreateUserView);
+        document.getElementById('showUpdateUserBtn').addEventListener('click', showUpdateUserView);
+    }
+
+    function showSystemsView() {
+        document.getElementById('contentArea').querySelectorAll('div[id$="Area"]').forEach(el => el.style.display = 'none');
+        document.getElementById('systemsGridArea').style.display = 'block';
+        document.querySelectorAll('.btn-primary').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('showSystemsBtn').classList.add('active');
+    }
+
+    function showCreateUserView() {
+        document.getElementById('contentArea').querySelectorAll('div[id$="Area"]').forEach(el => el.style.display = 'none');
+        document.getElementById('createUserArea').style.display = 'block';
+        document.querySelectorAll('.btn-primary').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('showCreateUserBtn').classList.add('active');
+    }
+
+    function showUpdateUserView() {
+        document.getElementById('contentArea').querySelectorAll('div[id$="Area"]').forEach(el => el.style.display = 'none');
+        document.getElementById('updateUserArea').style.display = 'block';
+        document.querySelectorAll('.btn-primary').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('showUpdateUserBtn').classList.add('active');
+
+        // 填充更新表单
+        if (currentUserInfo) {
+            document.getElementById('updatedUsername').value = currentUserInfo.name;
+            document.getElementById('updatedEmail').value = currentUserInfo.email || '';
+        }
+    }
+
+    // 设置用户管理表单事件
+    function setupUserManagementForms() {
+        // 创建用户表单
+        document.getElementById('createUserForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            await createUser();
+        });
+
+        // 更新用户信息表单
+        document.getElementById('updateUserForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+            await updateUserInfo();
+        });
+    }
+
+    // 创建用户
+    async function createUser() {
+        const newUsername = document.getElementById('newUsername').value.trim();
+        const newPassword = document.getElementById('newPassword').value;
+
+        if (!newUsername || !newPassword) {
+            showMessage('请输入用户名和密码。', 'error');
+            return;
+        }
+
+        try {
+            const response = await request.post('/create_user', {
+                name: newUsername,
+                passwd: newPassword
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${globalToken}`,
+                    'Token': globalToken,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+
+
+            if (response.data && response.data.msg && response.data.msg.includes('成功')) {
+                showMessage('用户创建成功。', 'success');
+                document.getElementById('createUserForm').reset();
+            } else {
+                showMessage(`创建用户失败：${response.data.msg || '未知错误'}`, 'error');
+            }
+        } catch (error) {
+            console.error('创建用户失败:', error);
+            let errorMessage = '创建用户失败，请检查网络或稍后重试。';
+            if (error.response) {
+                errorMessage = `创建用户失败：${error.response.status} ${error.response.statusText}`;
+                if (error.response.data && error.response.data.msg) {
+                    errorMessage = `创建用户失败：${error.response.data.msg}`;
+                }
+            }
+            showMessage(errorMessage, 'error');
+        }
+    }
+
+    // 更新用户信息
+    async function updateUserInfo() {
+        const updatedPassword = document.getElementById('updatedPassword').value;
+        const updatedEmail = document.getElementById('updatedEmail').value;
+
+        if (!updatedPassword && !updatedEmail) {
+            showMessage('请至少填写密码或邮箱一项。', 'error');
+            return;
+        }
+
+        try {
+
+            const updateData = {
+                name: currentUserInfo.name
+            };
+            if (updatedPassword) updateData.passwd = updatedPassword;
+            if (updatedEmail) updateData.email = updatedEmail;
+
+            const response = await request.post('http://127.0.0.1:5000/UserAuth/update_user', updateData, {
+                headers: {
+                    'Authorization': `Bearer ${globalToken}`,
+                    'token': globalToken,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+
+            if (response.data && response.data.msg && response.data.msg.includes('成功')) {
+                showMessage('用户信息更新成功。', 'success');
+                // 重新加载用户信息
+                await loadUserInfo();
+            } else {
+                showMessage(`更新用户信息失败：${response.data.msg || '未知错误'}`, 'error');
+            }
+        } catch (error) {
+            console.error('更新用户信息失败:', error);
+            let errorMessage = '更新用户信息失败，请检查网络或稍后重试。';
+            if (error.response) {
+                errorMessage = `更新用户信息失败：${error.response.status} ${error.response.statusText}`;
+                if (error.response.data && error.response.data.msg) {
+                    errorMessage = `更新用户信息失败：${error.response.data.msg}`;
+                }
+            }
+            showMessage(errorMessage, 'error');
+        }
+    }
+
+    // 显示消息提示
+    function showMessage(text, type) {
+        const messageDiv = document.getElementById('message');
+        messageDiv.textContent = text;
+        messageDiv.className = 'message ' + type; // 设置CSS类
+
+        // 清除之前可能存在的定时器
+        clearTimeout(window.messageTimer);
+
+        // 3秒后自动隐藏消息
+        window.messageTimer = setTimeout(() => {
+            messageDiv.style.display = 'none';
+        }, 3000);
+    }
+
+</script>
+</body>
+</html>

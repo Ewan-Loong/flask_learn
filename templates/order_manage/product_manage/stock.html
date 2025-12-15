@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>库存管理</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f4f4f4; }
+    .form-inline { display: inline-block; margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <h1>库存管理</h1>
+
+  <!-- 库存查询 -->
+  <h3>当前库存</h3>
+  <table id="stockTable">
+    <thead>
+      <tr>
+        <th>商品ID</th>
+        <th>商品名称</th>
+        <th>当前库存</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- 出入库操作 -->
+  <h3 style="margin-top: 20px;">商品出入库</h3>
+  <div>
+    <select id="prodSelect"></select>
+    <input type="number" id="stockNum" placeholder="数量" class="form-inline" />
+    <button onclick="stockIn()" class="form-inline">入库</button>
+    <button onclick="stockOut()" class="form-inline">出库</button>
+  </div>
+
+  <!-- 流水记录 -->
+  <h3 style="margin-top: 20px;">出入库流水</h3>
+  <table id="logTable">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>商品名</th>
+        <th>类型</th>
+        <th>数量</th>
+        <th>备注</th>
+        <th>时间</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const baseUrl = 'http://localhost:5000/ProdManage';
+    const token = 'your-jwt-token';
+    const uid = 1; // 操作员 ID
+
+    async function request(url, options) {
+      const res = await fetch(baseUrl + url, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return await res.json();
+    }
+
+    // 查询库存
+    async function loadStock() {
+      const result = await request('/select_stock', { method: 'GET' });
+      const tbody = document.querySelector('#stockTable tbody');
+      tbody.innerHTML = '';
+
+      const selectEl = document.getElementById('prodSelect');
+      selectEl.innerHTML = '<option value="">选择商品</option>';
+
+      result.data.forEach(item => {
+        const tr = document.createElement('tr');
+        const pname = item.om_prod?.prod_name || '未知';
+        const qty = item.om_prod_stock?.quantity || 0;
+
+        tr.innerHTML = `
+          <td>${item.om_prod?.pid}</td>
+          <td>${pname}</td>
+          <td>${qty}</td>
+          <td>-</td>
+        `;
+        tbody.appendChild(tr);
+
+        const opt = document.createElement('option');
+        opt.value = item.om_prod?.pid;
+        opt.textContent = `${pname} (库存: ${qty})`;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    // 查询日志
+    async function loadLog() {
+      const result = await request('/select_stock_log', { method: 'GET' });
+      const tbody = document.querySelector('#logTable tbody');
+      tbody.innerHTML = '';
+
+      result.data.forEach(log => {
+        const pname = log.om_prod?.prod_name || '未知';
+        const typeText = { 1: '入库', 2: '出库', 3: '入库撤销', 4: '出库撤销' }[log.om_stock_log.op_type] || '未知';
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${log.om_stock_log.id}</td>
+          <td>${pname}</td>
+          <td>${typeText}</td>
+          <td>${log.om_stock_log.op_num}</td>
+          <td>${log.om_stock_log.note}</td>
+          <td>${log.om_stock_log.d_date || '-'}</td>
+          <td>
+            ${[1,2].includes(log.om_stock_log.op_type) ? 
+              `<button onclick="cancelStockOp(${log.om_stock_log.id})">撤销</button>` : 
+              '不可撤销'}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 入库
+    async function stockIn() {
+      const pid = parseInt(document.getElementById('prodSelect').value);
+      const num = parseInt(document.getElementById('stockNum').value);
+      if (!pid || num <= 0) return alert('请选择商品并输入合法数量');
+
+      const result = await request('/stock_in', {
+        method: 'POST',
+        body: JSON.stringify({ pid, uid, num })
+      });
+
+      alert(result.msg);
+      loadStock();
+      loadLog();
+    }
+
+    // 出库
+    async function stockOut() {
+      const pid = parseInt(document.getElementById('prodSelect').value);
+      const num = parseInt(document.getElementById('stockNum').value);
+      if (!pid || num <= 0) return alert('请选择商品并输入合法数量');
+
+      const result = await request('/stock_out', {
+        method: 'POST',
+        body: JSON.stringify({ pid, uid, num })
+      });
+
+      alert(result.msg);
+      loadStock();
+      loadLog();
+    }
+
+    // 撤销操作
+    async function cancelStockOp(logId) {
+      if (!confirm('确定撤销此操作？')) return;
+
+      const result = await request('/stock_cancel', {
+        method: 'POST',
+        body: JSON.stringify({ id: logId, uid })
+      });
+
+      alert(result.msg);
+      loadStock();
+      loadLog();
+    }
+
+    // 初始化
+    window.onload = () => {
+      loadStock();
+      loadLog();
+    };
+  </script>
+</body>
+</html>
