@@ -8,7 +8,7 @@
 from flask import Blueprint, request, abort, url_for
 from sqlalchemy import select
 from core.db import db_session, select_by_where, insert_by_obj, update_by_obj, delete_by_obj, get_model
-from core.api_token import required_token, check_params
+from core.api_check import required_token, check_params
 from core.utils import to_json2
 
 bp = Blueprint('product_manage', __name__, url_prefix='/ProdManage', template_folder='/templates')
@@ -263,11 +263,13 @@ def select_stock():
 
 @bp.route('/select_stock_log', methods=['GET'])
 @required_token
+@check_params('pid')
 def select_stock_log():
+    pid = request.args.get('pid')
     stock_log = get_model('om_stock_log')
     prod = get_model('om_prod')
     res = db_session.execute(
-        select(stock_log, prod.pname).join(prod, prod.pid == stock_log.pid)).mappings().all()
+        select(stock_log, prod.pname).join(prod, prod.pid == stock_log.pid).where(prod.pid == pid)).mappings().all()
     res_list = []
     for row in res:
         r1 = to_json2(row['om_stock_log'])[0]
@@ -285,7 +287,7 @@ def stock_in():
     # 商品入库
     data = request.json
     if data['op_num'] < 0:
-        return {'msg': '入库数量不合法'}
+        return {'msg': '入库数量不合法'}, 500
     op_prod = {'pid': data['pid']}
     prod = select_by_where('om_prod_stock', op_prod)
     if not prod:  # 如果该产品没有库存信息
@@ -309,14 +311,14 @@ def stock_out():
     # 商品出库
     data = request.json
     if data['op_num'] < 0:
-        return {'msg': '出库数量不合法'}
+        return {'msg': '出库数量不合法'}, 500
     op_prod = {'pid': data['pid']}
     prod = select_by_where('om_prod_stock', op_prod)
     if not prod:  # 如果该产品没有库存信息
-        return {'msg': '商品库存信息不存在,请先入库后再出库'}
+        return {'msg': '商品库存信息不存在,请先入库后再出库'}, 500
     else:
         if prod[0]['quantity'] < data['op_num']:
-            return {'msg': '出库数量不能大于当前库存'}
+            return {'msg': '出库数量不能大于当前库存'}, 500
         else:
             prod[0]['quantity'] -= data['op_num']
             update_by_obj('om_prod_stock', prod)
@@ -334,7 +336,7 @@ def stock_cancel():
     data = request.json
     op_log = select_by_where('om_stock_log', {'id': data['id']})
     if not op_log:  # 如果没有该日志
-        return {'msg': '操作信息不存在,撤销操作失败'}
+        return {'msg': '操作信息不存在,撤销操作失败'}, 500
     else:
         if op_log[0]['op_type'] == 1:
             prod = select_by_where('om_prod_stock', {'pid': op_log[0]['pid']})
@@ -349,7 +351,7 @@ def stock_cancel():
             log = {'pid': op_log[0]['pid'], 'op_type': 4, 'op_num': op_log[0]['op_num'], 'op_uid': data['uid'],
                    'note': '商品出库撤销'}
         else:
-            return {'msg': '该记录不支持撤销'}
+            return {'msg': '该记录不支持撤销'}, 500
         update_by_obj('om_prod_stock', prod)
         insert_by_obj('om_stock_log', log)
     return {'msg': '撤销成功'}

@@ -8,7 +8,7 @@
 from flask import Blueprint, request
 
 from core.db import select_by_where, insert_by_obj, update_by_obj, delete_by_obj
-from core.api_token import required_token, generate_token, verify_token, check_params
+from core.api_check import required_token, generate_token, verify_token, check_params
 from bcrypt import gensalt, hashpw, checkpw
 
 bp = Blueprint('user_auth', __name__, url_prefix='/UserAuth', template_folder='/templates')

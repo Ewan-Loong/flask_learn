@@ -11,7 +11,7 @@ from flask import Blueprint, request, send_from_directory, current_app
 from werkzeug.utils import secure_filename
 import pandas as pd
 from app import app
-from core.api_token import check_files, required_token, check_params
+from core.api_check import check_files, required_token, check_params
 from core.utils import generate_unique_filename
 
 bp = Blueprint('file_handle', __name__, url_prefix='/FileHandle')
