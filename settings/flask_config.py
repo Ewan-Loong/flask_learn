@@ -72,8 +72,6 @@ class BaseConfig:
     UPLOAD_FOLDER = 'uploads'
     ALLOWED_EXTENSIONS = {'xlsx', 'xls', 'csv', 'txt', 'json'}
     MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
-    # 确保上传目录存在
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 # 开发环境

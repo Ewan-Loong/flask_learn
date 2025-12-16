@@ -27,6 +27,10 @@ def login():
             if user[0]['on_line'] == -1:
                 user[0]['on_line'] = 1
                 update_by_obj('om_user', user)
+            # 权限字段补充
+            role = select_by_where('om_role', {'rid': user[0]['rid']})
+            user[0]['rcode'] = role[0]['rcode']
+            user[0]['rname'] = role[0]['rname']
             res['token'] = generate_token(user[0]['uid'])
             res['user'] = user[0]
         else:
@@ -59,8 +63,14 @@ def refresh_token():
 def select_user():
     data = request.json
     user = select_by_where('om_user', data)
+    role = select_by_where('om_role')
     for i in user:
         i['passwd'] = '******'
+        # 权限字段补充
+        for r in role:
+            if i['rid'] == r['rid']:
+                i['rcode'] = r['rcode']
+                i['rname'] = r['rname']
     return {'msg': '查询成功', 'data': user}
 
 
@@ -97,7 +107,7 @@ def update_user():
         psd = i.get('passwd')
         if psd and psd != '******':
             i['passwd'] = hashpw(i['passwd'].encode(), salt).decode('utf-8')
-        else :
+        else:
             i.pop('passwd')
     update_by_obj('om_user', list_data)
     c = 0

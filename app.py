@@ -27,6 +27,9 @@ def create_app(conf="dev"):
     app.config.from_object(config.get(conf))
     # print(app.config)
 
+    # 确保上传目录存在
+    os.makedirs(config.get(conf).UPLOAD_FOLDER, exist_ok=True)
+
     # 中文返回
     # app.json.ensure_ascii = False
 

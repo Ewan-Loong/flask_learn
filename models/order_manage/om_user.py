@@ -17,4 +17,5 @@ class Om_user(Base):
     name = Column("name", String(32), primary_key=True, nullable=False, comment='姓名')
     birthdt = Column("birthdt", DATE, nullable=False, comment='出生日期')
     passwd = Column("passwd", String(64), nullable=False, comment='密码')
+    rid = Column("rid", Integer, nullable=False, comment='角色id')
     on_line = Column("on_line", Integer, default=-1, nullable=False, comment='1在线 -1不在线')
