@@ -1,0 +1,130 @@
+#!/usr/bin python
+# -*- coding: utf-8 -*-
+# @Time    : 2025/12/17 10:30
+# @Author  : Ewan
+# @File    : role_permission.py
+# @Description : 用户角色权限
+
+from flask import Blueprint, request
+
+from core.db import select_by_where, insert_by_obj, update_by_obj, delete_by_obj
+from core.api_check import required_token, generate_token, verify_token, check_params
+
+bp = Blueprint('role_permission', __name__, url_prefix='/RolePermission', template_folder='/templates')
+
+
+@bp.route('/select_role', methods=['GET'])
+@required_token
+# @check_params()
+def select_role():
+    role = select_by_where('om_role')
+    return {'msg': '查询成功', 'data': role}
+
+
+@bp.route('/create_role', methods=['POST'])
+# @required_token
+@check_params()
+def create_role():
+    data = request.json
+    list_data = data['values'] if data.get('values') else [data]
+    for i in list_data:
+        exist = select_by_where('om_role', {'rcode': i['rcode']})
+        if exist:
+            return {'msg': '角色编码 {} 已存在'.format(i['rcode'])}, 400
+        insert_by_obj('om_role', i)
+
+    return {'msg': '创建成功'}
+
+
+@bp.route('/update_role', methods=['POST'])
+@required_token
+@check_params()
+def update_role():
+    data = request.json
+    list_data = data['values'] if data.get('values') else [data]
+    c = 0
+    for i in list_data:
+        exist = select_by_where('om_role', {'rcode': i['rcode']})
+        if exist and i['rid'] != exist[0]['rid']:
+            return {'msg': '角色编码 {} 已存在'.format(i['rcode'])}, 400
+        else:
+            update_by_obj('om_role', list_data)
+            c = c + 1
+    if len(list_data) == c:
+        return {'msg': '更新成功'}
+    else:
+        return {'msg': '更新成功{}个'.format(c)}
+
+
+@bp.route('/delete_role', methods=['POST'])
+@required_token
+@check_params('rid', 'rcode')
+def delete_role():
+    data = request.json
+    delete_by_obj('om_role', data)
+    role = select_by_where('om_role', data)
+    if len(role) == 0:
+        return {'msg': '删除成功'}
+    else:
+        return {'msg': '删除失败'}
+
+
+@bp.route('/select_permission', methods=['POST'])
+@required_token
+# @check_params()
+def select_permission():
+    data = request.json
+    permission = select_by_where('om_permission', data)
+    return {'msg': '查询成功', 'data': permission}
+
+
+@bp.route('/create_permission', methods=['POST'])
+@required_token
+@check_params()
+def create_permission():
+    data = request.json
+    list_data = data['values'] if data.get('values') else [data]
+    for i in list_data:
+        exist = select_by_where('om_permission', {'code': i['code']})
+        if exist:
+            return {'msg': '权限编码 {} 已存在'.format(i['code'])}, 400
+        insert_by_obj('om_permission', i)
+
+    return {'msg': '创建成功'}
+
+
+@bp.route('/update_permission', methods=['POST'])
+@required_token
+@check_params()
+def update_permission():
+    data = request.json
+    list_data = data['values'] if data.get('values') else [data]
+    c = 0
+    for i in list_data:
+        exist = select_by_where('om_permission', {'code': i['code']})
+        if exist and i['id'] != exist[0]['id']:
+            return {'msg': '权限编码 {} 已存在'.format(i['code'])}, 400
+        else:
+            update_by_obj('om_permission', i)
+            c = c + 1
+    if len(list_data) == c:
+        return {'msg': '更新成功'}
+    else:
+        return {'msg': '更新成功{}个'.format(c)}
+
+
+@bp.route('/delete_permission', methods=['POST'])
+@required_token
+@check_params('id', 'code')
+def delete_permission():
+    data = request.json
+    delete_by_obj('om_permission', data)
+    permission = select_by_where('om_permission', data)
+    if len(permission) == 0:
+        return {'msg': '删除成功'}
+    else:
+        return {'msg': '删除失败'}
+
+
+if __name__ == '__main__':
+    pass

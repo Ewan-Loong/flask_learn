@@ -29,6 +29,9 @@ class RequestFormatter(logging.Formatter):
                     if request.files:
                         # record.args.update({k: v.filename for k, v in request.files.to_dict().items()})
                         record.args.update(request.files.to_dict())
+            elif request.method=='OPTIONS':
+                # 预检方法无参数
+                record.args = {'INFO': 'OPTIONS without args'}
             else:
                 # FIXME method只处理了GET/POST , Content-Type只考虑了键值对/JSON/表单数据
                 record.args = {'WARING': 'Cannot be parsed'}
