@@ -43,7 +43,8 @@ def login():
 @check_params('name', 'uid')
 def logout():
     data = request.json
-    user = select_by_where('om_user', data)
+    param = {key: data[key] for key in ['uid', 'name']}
+    user = select_by_where('om_user', param)
     user[0]['on_line'] = -1
     update_by_obj('om_user', user)
     return {'msg': '登出成功'}
@@ -125,9 +126,9 @@ def update_user():
 @check_params('uid', 'name')
 def delete_user():
     data = request.json
-    data.pop('passwd')
-    delete_by_obj('om_user', data)
-    user = select_by_where('om_user', data)
+    param = {key: data[key] for key in ['uid', 'name']}
+    delete_by_obj('om_user', param)
+    user = select_by_where('om_user', param)
     if len(user) == 0:
         return {'msg': '删除成功'}
     else:
