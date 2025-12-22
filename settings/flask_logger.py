@@ -31,10 +31,10 @@ class RequestFormatter(logging.Formatter):
                         record.args.update(request.files.to_dict())
             elif request.method=='OPTIONS':
                 # 预检方法无参数
-                record.msg = 'OPTIONS without params'
+                record.args = {'INFO': 'OPTIONS without args'}
             else:
                 # FIXME method只处理了GET/POST , Content-Type只考虑了键值对/JSON/表单数据
-                record.msg = 'Params cannot be parsed'
+                record.args = {'WARING': 'Args cannot be parsed'}
         else:
             record.url = None
             # record.remote_addr = None
