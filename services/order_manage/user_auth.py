@@ -8,7 +8,7 @@
 from flask import Blueprint, request
 
 from core.db import select_by_where, insert_by_obj, update_by_obj, delete_by_obj
-from core.api_check import required_token, generate_token, verify_token, check_params
+from core.api_check import required_token, generate_token, verify_token, check_params, check_permission
 from bcrypt import gensalt, hashpw, checkpw
 
 bp = Blueprint('user_auth', __name__, url_prefix='/UserAuth', template_folder='/templates')
@@ -61,6 +61,7 @@ def refresh_token():
 @bp.route('/select_user', methods=['POST'])
 @required_token
 # @check_params()
+@check_permission('user:query')
 def select_user():
     data = request.json
     user = select_by_where('om_user', data)
@@ -78,6 +79,7 @@ def select_user():
 @bp.route('/create_user', methods=['POST'])
 # @required_token
 @check_params()
+@check_permission('user:add')
 def create_user():
     data = request.json
     list_data = data['values'] if data.get('values') else [data]
@@ -99,6 +101,7 @@ def create_user():
 @bp.route('/update_user', methods=['POST'])
 @required_token
 @check_params()
+@check_permission('user:update')
 def update_user():
     data = request.json
     list_data = data['values'] if data.get('values') else [data]
@@ -124,6 +127,7 @@ def update_user():
 @bp.route('/delete_user', methods=['POST'])
 @required_token
 @check_params('uid', 'name')
+@check_permission('user:delete')
 def delete_user():
     data = request.json
     param = {key: data[key] for key in ['uid', 'name']}

@@ -10,7 +10,9 @@ import time
 import pytz
 from flask import request, current_app
 from itsdangerous import TimedSerializer, SignatureExpired, BadSignature
-from core.utils import is_allowed_file
+from sqlalchemy import select
+from core.db import get_model, db_session
+from core.utils import is_allowed_file, to_json2
 
 
 # 生成密钥 并补充过期时间
@@ -83,6 +85,46 @@ def check_params(*required_params):
                 missing = [item for item in required_params if item not in args_list.keys() or args_list[item] == '']
                 if missing:
                     return {'msg': 'Missing parameter: {}'.format(','.join(missing))}, 400
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+# 定义角色权限校验器
+def check_permission(*permission_list):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # 获取当前请求的用户 token中包含用户id
+            uid = request.headers['Token'].split('.')[0]
+            # TODO 可以配置上redis缓存机制 提高校验速度
+
+            # 数据库获取用户角色权限信息
+            user = get_model('om_user')
+            permission = get_model('om_permission')
+            role_permission = get_model('om_role_permission')
+
+            sql = db_session.execute(
+                select(permission)
+                .join(role_permission, role_permission.permission_id == permission.id)
+                .join(user, user.rid == role_permission.role_id)
+                .where(user.uid == uid)
+            ).mappings().all()
+            # 权限验证并返回
+            user_per = []
+            for row in sql:
+                user_per.extend(to_json2(row['om_permission']))
+
+            user_per_list = set(i['code'] for i in user_per)
+            # 通配符权限
+            permission_build = set([i.split(':')[0] + ':*' for i in permission_list])
+            if not (set(permission_list).issubset(user_per_list) or set(permission_build).issubset(user_per_list)):
+                miss = [i for i in permission_list if i not in user_per_list]
+                return {'msg': '用户缺少权限{}'.format(miss)}, 403
+            else:
+                current_app.logger.info('用户({})调用API权限验证通过'.format(uid))
             return func(*args, **kwargs)
 
         return wrapper

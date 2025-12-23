@@ -6,9 +6,10 @@
 # @Description : 用户角色权限
 
 from flask import Blueprint, request
-
-from core.db import select_by_where, insert_by_obj, update_by_obj, delete_by_obj
-from core.api_check import required_token, check_params
+from sqlalchemy import select
+from core.db import select_by_where, insert_by_obj, update_by_obj, delete_by_obj, get_model, db_session
+from core.api_check import required_token, check_params, check_permission
+from core.utils import to_json2
 
 bp = Blueprint('role_permission', __name__, url_prefix='/RolePermission', template_folder='/templates')
 
@@ -16,6 +17,7 @@ bp = Blueprint('role_permission', __name__, url_prefix='/RolePermission', templa
 @bp.route('/select_role', methods=['GET'])
 @required_token
 # @check_params()
+@check_permission('role:query')
 def select_role():
     role = select_by_where('om_role')
     return {'msg': '查询成功', 'data': role}
@@ -24,6 +26,7 @@ def select_role():
 @bp.route('/create_role', methods=['POST'])
 # @required_token
 @check_params()
+@check_permission('role:add')
 def create_role():
     data = request.json
     list_data = data['values'] if data.get('values') else [data]
@@ -39,6 +42,7 @@ def create_role():
 @bp.route('/update_role', methods=['POST'])
 @required_token
 @check_params()
+@check_permission('role:update')
 def update_role():
     data = request.json
     list_data = data['values'] if data.get('values') else [data]
@@ -59,6 +63,7 @@ def update_role():
 @bp.route('/delete_role', methods=['POST'])
 @required_token
 @check_params('rid', 'rcode')
+@check_permission('role:delete')
 def delete_role():
     data = request.json
     delete_by_obj('om_role', data)
@@ -72,6 +77,7 @@ def delete_role():
 @bp.route('/select_permission', methods=['POST'])
 @required_token
 # @check_params()
+@check_permission('role:query')
 def select_permission():
     data = request.json
     permission = select_by_where('om_permission', data)
@@ -121,6 +127,59 @@ def delete_permission():
     delete_by_obj('om_permission', data)
     permission = select_by_where('om_permission', data)
     if len(permission) == 0:
+        return {'msg': '删除成功'}
+    else:
+        return {'msg': '删除失败'}
+
+
+@bp.route('/select_role_permission', methods=['POST'])
+@required_token
+@check_params('role_id')
+@check_permission('role:query')
+def select_role_permission():
+    data = request.json
+
+    permission = get_model('om_permission')
+    role_permission = get_model('om_role_permission')
+
+    sql = db_session.execute(
+        select(permission).join(role_permission, role_permission.permission_id == permission.id).where(
+            role_permission.role_id == data['role_id'])).mappings().all()
+
+    res = []
+    for row in sql:
+        res.extend(to_json2(row['om_permission']))
+
+    return {'msg': '查询成功', 'data': res}
+
+
+@bp.route('/add_role_permission', methods=['POST'])
+@required_token
+@check_params('role_id', 'permission_id_list')
+@check_permission('role:add')
+def add_role_permission():
+    data = request.json
+    permission_id_list = data['permission_id_list']
+    for i in permission_id_list:
+        obj = {'role_id': data['role_id'], 'permission_id': i}
+        exist = select_by_where('om_role_permission', obj)
+        if exist:
+            return {'msg': '权限 {} 已存在'.format(i)}, 400
+        insert_by_obj('om_role_permission', obj)
+
+    return {'msg': '创建成功'}
+
+
+@bp.route('/delete_role_permission', methods=['POST'])
+@required_token
+@check_params('role_id', 'permission_id_list')
+@check_permission('role:update')
+def delete_role_permission():
+    data = request.json
+    obj = {'role_id': data['role_id'], 'permission_id': data['permission_id_list']}
+    delete_by_obj('om_role_permission', obj)
+    exist = select_by_where('om_role_permission', obj)
+    if len(exist) == 0:
         return {'msg': '删除成功'}
     else:
         return {'msg': '删除失败'}

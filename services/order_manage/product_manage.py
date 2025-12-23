@@ -8,7 +8,7 @@
 from flask import Blueprint, request, abort, url_for
 from sqlalchemy import select
 from core.db import db_session, select_by_where, insert_by_obj, update_by_obj, delete_by_obj, get_model
-from core.api_check import required_token, check_params
+from core.api_check import required_token, check_params, check_permission
 from core.utils import to_json2
 
 bp = Blueprint('product_manage', __name__, url_prefix='/ProdManage', template_folder='/templates')
@@ -17,6 +17,7 @@ bp = Blueprint('product_manage', __name__, url_prefix='/ProdManage', template_fo
 @bp.route('/select_prod', methods=['POST'])
 @required_token
 # @check_params()
+@check_permission('prod:query')
 def select_prod():
     data = request.json
     prod = select_by_where('om_prod', data)
@@ -48,6 +49,7 @@ def select_prod():
 @bp.route('/create_prod', methods=['POST'])
 @required_token
 @check_params()
+@check_permission('prod:add')
 def create_prod():
     data = request.json
     list_data = data['values'] if data.get('values') else [data]
@@ -78,6 +80,7 @@ def create_prod():
 @bp.route('/update_prod', methods=['POST'])
 @required_token
 @check_params()
+@check_permission('prod:update')
 def update_prod():
     data = request.json
     list_data = data['values'] if data.get('values') else [data]
@@ -102,6 +105,7 @@ def update_prod():
 @bp.route('/delete_prod', methods=['POST'])
 @required_token
 @check_params('pid', 'uid')
+@check_permission('prod:delete')
 def delete_prod():
     data = request.json
     delete_by_obj('om_prod', {'pid': data['pid'], 'uid': data['uid']})
@@ -116,6 +120,7 @@ def delete_prod():
 
 @bp.route('/select_tag', methods=['GET'])
 @required_token
+@check_permission('tag:query')
 def select_tag():
     prod = select_by_where('om_prod_tag', {'is_del': 0})  # 当前有效的产品
 
@@ -149,6 +154,7 @@ def select_tag():
 @bp.route('/create_tag', methods=['POST'])
 @required_token
 @check_params('tname')
+@check_permission('tag:add')
 def create_tag():
     # 一次新增一个
     data = request.json
@@ -163,6 +169,7 @@ def create_tag():
 @bp.route('/update_tag', methods=['POST'])
 @required_token
 @check_params('tid')
+@check_permission('tag:update')
 def update_tag():
     # 一次修改一个
     data = request.json
@@ -177,6 +184,7 @@ def update_tag():
 @bp.route('/delete_tag', methods=['POST'])
 @required_token
 @check_params('tid')
+@check_permission('tag:delete')
 def delete_tag():
     # 逻辑删除标签及其子项
     data = request.json
@@ -245,6 +253,7 @@ def file_test():
 
 @bp.route('/select_stock', methods=['GET'])
 @required_token
+@check_permission('stock:query')
 def select_stock():
     stock = get_model('om_prod_stock')
     prod = get_model('om_prod')
@@ -264,6 +273,7 @@ def select_stock():
 @bp.route('/select_stock_log', methods=['GET'])
 @required_token
 @check_params('pid')
+@check_permission('stock:query')
 def select_stock_log():
     pid = request.args.get('pid')
     stock_log = get_model('om_stock_log')
@@ -283,6 +293,7 @@ def select_stock_log():
 @bp.route('/stock_in', methods=['POST'])
 @required_token
 @check_params('pid', 'op_uid', 'op_num', 'note')
+@check_permission('stock:add','stock:update')
 def stock_in():
     # 商品入库
     data = request.json
@@ -307,6 +318,7 @@ def stock_in():
 @bp.route('/stock_out', methods=['POST'])
 @required_token
 @check_params('pid', 'op_uid', 'op_num', 'note')
+@check_permission('stock:add','stock:update')
 def stock_out():
     # 商品出库
     data = request.json
